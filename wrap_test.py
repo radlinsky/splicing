@@ -4,9 +4,9 @@ import sys
 sys.path.append("/home/cradens/home_base/splicing/")
 from splicing_fun import *
 
-afp="/home/cradens/home_base/splicing/dpsi/TH1e_TH2e/Th1_e_A_Th2_e_A.deltapsi_quantify_deltapsi.txt"
+afp="/home/cradens/home_base/splicing/spurlock_dpsi/Th1_e_A_Th2_e_A.deltapsi_quantify_deltapsi.txt"
 
-bfp="/home/cradens/home_base/splicing/dpsi/TH1e_TH17e/Th1_e_A_Th17_e_A.deltapsi_quantify_deltapsi.txt"
+bfp="/home/cradens/home_base/splicing/spurlock_dpsi/Th1_e_A_Th17_e_A.deltapsi_quantify_deltapsi.txt"
 
 a=import_dpsi(afp)
 a_label = a["condition_1_name"]+"_vs_"+a["condition_2_name"]
