@@ -36,6 +36,18 @@ m1, v1 = get_EXECdpsi_line('/data/THelper/ranzani_2015/settings.txt','T4_N','T4_
 
 fw.write(m1+v1)
 
+m1, v1 = get_EXECdpsi_line('/data/THelper/ranzani_2015/settings.txt','T4_1','T4_2','./build','./majiq/dpsi/T4_TH1vsTH2','./voila/dpsi/T4_TH1vsTH2',show_all=False)
+
+fw.write(m1+v1)
+
+m1, v1 = get_EXECdpsi_line('/data/THelper/ranzani_2015/settings.txt','T4_1','T4_17','./build','./majiq/dpsi/T4_TH1vsTH17','./voila/dpsi/T4_TH1vsTH17',show_all=False)
+
+fw.write(m1+v1)
+
+m1, v1 = get_EXECdpsi_line('/data/THelper/ranzani_2015/settings.txt','T4_2','T4_17','./build','./majiq/dpsi/T4_TH2vsTH17','./voila/dpsi/T4_TH2vsTH17',show_all=False)
+
+fw.write(m1+v1)
+
 samps = ["T4_N","T4_1","T4_2","T4_17","T4_R","T4_CM","T4_EM"]
 
 # Psi calculations
