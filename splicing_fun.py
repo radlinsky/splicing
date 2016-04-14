@@ -8,6 +8,8 @@
 
 import os
 import sys
+from matplotlib_venn import venn2, venn3
+from matplotlib import pyplot as plt
 
 DPSI_HEADER = ["Gene Name",
                "Gene ID",
@@ -46,9 +48,11 @@ def import_dpsi(File_path):
             line_split = line.rstrip("\r\n").split("\t")
             
             if line_i == 0:
+                condition_1_name = line_split[5].split(" ")[0]
+                condition_2_name = line_split[6].split(" ")[0]
                 line_i += 1
                 continue
-            
+
             gene_name = str(line_split[0])
             
             gene_id = str(line_split[1])
@@ -117,14 +121,70 @@ def import_dpsi(File_path):
             
             line_i += 1
         
+        lsv_dictionary["condition_1_name"] = condition_1_name
+        lsv_dictionary["condition_2_name"] = condition_2_name
+        
         print str(line_i)+ " LSVs extracted from "+os.path.basename(File_path)
         return lsv_dictionary
+ 
+def get_name_set(LSV_dict, Cutoff = 0):
+    """
+        Given LSV dictionary, return set of unique LSV IDs over cutoff
+        
+        Arguments:
+            LSV_dict: output of import_dpsi
+            Cutoff:   Only return LSV IDs with at least 1 junction dPSI >= Cutoff
+            
+        Return:
+            Set
+    """
+    
+    # names AKA LSV IDs
+    names = LSV_dict.keys()
+    names_over_cutoff = set()
+    
+    for name in names:
+        if name == "condition_1_name" or name == "condition_2_name":
+            continue
+        dPSIs = LSV_dict[name]["(dPSI) per LSV junction"]
+        for dPSI in dPSIs:
+            if dPSI > Cutoff:
+                names_over_cutoff.add(name)
+    
+    return names_over_cutoff
 
-def top_lsvs(Cutoff = 0.95):
+def plot_venn(List_of_sets,
+              Set_labels,
+              Main = "Test Venn!",
+              Out_File = ""):
     """
-        Given an imported dpsi file, return names of LSVs that contain
-        at least one junction with P(E(dPSI)) >= Cutoff.
+        Given a list of sets, generate a venn diagram in Out_Dir.
+        
+        Arguments:
+            List_of_sets
+            Set_labels: Label for each circle
+            Main: Title of plot
+            Out_File: Where should plot be saved?
+                Parent directory expected to already exist...
+                This will overwrite plots if they already exist
+        
+        Tested:
+            2 sets
+            
+        To test:
+            3+ sets
     """
+    if not os.path.isdir(os.path.dirname(Out_File)):
+        raise ValueError(os.path.dirname(Out_File)+" <--- PATH DOESN'T EXIST")
+    if len(List_of_sets) == 2:
+        if len(Set_labels) != 2:
+            raise ValueError("Set_labels needs to be the same length as the number of sets...")
+        # Default figure dimensions...
+        plt.figure()
+        venn2(List_of_sets,Set_labels)
+        plt.title(Main)
+        plt.savefig(Out_File)
+        
             
             
             
