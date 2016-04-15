@@ -14,7 +14,7 @@ from matplotlib import pyplot as plt
 DPSI_HEADER = ["Gene Name",
                "Gene ID",
                "LSV ID",
-               "(dPSI) per LSV junction",
+               "E(dPSI) per LSV junction",
                "P(|E(dPSI)|>=0.20) per LSV junction",
                "E(PSI)",                                # This header also has the 1st condition name
                "E(PSI)",                                # This header also has the 2nd condition name
@@ -146,33 +146,57 @@ def get_name_set(LSV_dict, Cutoff = 0):
     for name in names:
         if name == "condition_1_name" or name == "condition_2_name":
             continue
-        dPSIs = LSV_dict[name]["(dPSI) per LSV junction"]
+        dPSIs = LSV_dict[name]["E(dPSI) per LSV junction"]
         for dPSI in dPSIs:
             if dPSI > Cutoff:
                 names_over_cutoff.add(name)
     
     return names_over_cutoff
 
+def no_intron_retention(LSV_dict):
+    """
+        Given LSV dictionary, return LSV dictionary without intron-retention LSVs.
+    """
+    # names AKA LSV IDs
+    names = LSV_dict.keys()
+    non_intron_names = list()
+    intron_names = list()
+    
+    for name in names:
+        if name == "condition_1_name" or name == "condition_2_name":
+            non_intron_names.append(name)
+            intron_names.append(name)
+            continue
+        # If LSV type is intron:
+        if LSV_dict[name]["LSV Type"][-1:] == "i":
+            # Save these names, too, just in case I want em later
+            intron_names.append(name)
+        else:
+            non_intron_names.append(name)
+    
+    # Copy subset of dictionary using found names.
+    #     The None is not nec., because I know all keys will be in this
+    #     Dict, but for future Caleb/aliens modifying this code, I'm keeping it.
+    new_dict = {k: LSV_dict.get(k, None) for k in non_intron_names}
+    
+    print str(len(non_intron_names))+ " out of " + str(len(non_intron_names)+len(intron_names)-3) + " non-intronic LSVs found."
+    
+    return new_dict
+
 def plot_venn(List_of_sets,
               Set_labels,
-              Main = "Test Venn!",
+              Main = "I forgot to give this plot a name.",
               Out_File = ""):
     """
         Given a list of sets, generate a venn diagram in Out_Dir.
         
         Arguments:
-            List_of_sets
+            List_of_sets (two or three only!)
             Set_labels: Label for each circle
             Main: Title of plot
-            Out_File: Where should plot be saved?
+            Out_File: Where should plot be saved? And what should the file be named?
                 Parent directory expected to already exist...
                 This will overwrite plots if they already exist
-        
-        Tested:
-            2 sets
-            
-        To test:
-            3+ sets
     """
     if not os.path.isdir(os.path.dirname(Out_File)):
         raise ValueError(os.path.dirname(Out_File)+" <--- PATH DOESN'T EXIST")
@@ -184,6 +208,17 @@ def plot_venn(List_of_sets,
         venn2(List_of_sets,Set_labels)
         plt.title(Main)
         plt.savefig(Out_File)
+        
+    elif len(List_of_sets) == 3:
+        if len(Set_labels) != 3:
+            raise ValueError("Set_labels needs to be the same length as the number of sets...")
+        # Default figure dimensions...
+        plt.figure()
+        venn3(List_of_sets,Set_labels)
+        plt.title(Main)
+        plt.savefig(Out_File)
+    else:
+        raise ValueError("List_of_sets needs to be of length 2 or 3.")
         
             
             
