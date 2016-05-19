@@ -11,6 +11,7 @@ import sys
 import itertools
 from matplotlib_venn import venn2, venn3
 from matplotlib import pyplot as plt
+import math
 
 import pdb
 
@@ -19,8 +20,8 @@ DPSI_HEADER = ["Gene Name",
                "LSV ID",
                "E(dPSI) per LSV junction",
                "P(|E(dPSI)|>=0.20) per LSV junction",
-               "E(PSI)",                                # This header also has the 1st condition name
-               "E(PSI)",                                # This header also has the 2nd condition name
+               "E(PSI)1",                                # This header also has the 1st condition name
+               "E(PSI)2",                                # This header also has the 2nd condition name
                "LSV Type",
                "A5SS",
                "A3SS",
@@ -40,7 +41,7 @@ DPSI_HEADER = ["Gene Name",
 CUTOFF_DPSI = 0.2
 CUTOFF_PROB = 0.95
 
-def quick_import(Directory, Cutoff_dPSI = CUTOFF_DPSI, Cutoff_prob = CUTOFF_PROB):
+def quick_import(Directory, Cutoff_dPSI = CUTOFF_DPSI, Cutoff_prob = CUTOFF_PROB, Keep_introns = False):
     """
         Given a directory with '*_quantify_deltapsi' files, import all dPSI
             text files, throwing away intron events, return dictionary as follows.
@@ -79,13 +80,18 @@ def quick_import(Directory, Cutoff_dPSI = CUTOFF_DPSI, Cutoff_prob = CUTOFF_PROB
         imported_dpsi_dicts.append(import_dpsi(f,Cutoff_dPSI,Cutoff_prob))
         
     print "Imported "+str(len(imported_dpsi_dicts))+ " dpSI text files..."
-        
-    imported_dpsi_dicts_no_introns = list()
     
-    for dpsi_dict in imported_dpsi_dicts:
-        imported_dpsi_dicts_no_introns.append(no_intron_retention(dpsi_dict))
+    if not Keep_introns:
         
-    print "Threw away intronic LSVs from "+str(len(imported_dpsi_dicts_no_introns))+ " imported dPSI files..."
+        imported_dpsi_dicts_no_introns = list()
+        
+        for dpsi_dict in imported_dpsi_dicts:
+            imported_dpsi_dicts_no_introns.append(no_intron_retention(dpsi_dict))
+            
+        print "Threw away intronic LSVs from "+str(len(imported_dpsi_dicts_no_introns))+ " imported dPSI files..."
+    else:
+        
+        imported_dpsi_dicts_no_introns = imported_dpsi_dicts
     
     import_dictionary = dict()
     
@@ -98,6 +104,85 @@ def quick_import(Directory, Cutoff_dPSI = CUTOFF_DPSI, Cutoff_prob = CUTOFF_PROB
         import_dictionary[name]=imported_file
     
     return import_dictionary
+
+def printable_lsv(LSV):
+    """ Given a LSV or dictionary of LSVs, return pretty-printable list
+            of data.
+            
+    """
+    printable = ""
+    lsv_ids = []
+    if type(LSV) is not dict:
+        raise ValueError("LSV needs to be a dictionary ...")
+    # If the LSV dictionary is a dictionary of LSVs:
+    if LSV.has_key("condition_1_name"):
+        lsv_ids = get_name_set(LSV,0,0)
+    if "target" in LSV.keys()[0] or "source" in LSV.keys()[0]:
+        lsv_ids = LSV.keys()
+    if len(lsv_ids) > 0:
+        for id in lsv_ids:
+            printable += _help_print_lsv(LSV[id], id)
+    # Else I assume function was given a single LSV dict
+    else:
+        printable += _help_print_lsv(LSV)
+
+    return printable
+
+def _help_print_lsv(LSV, LSVID = False):
+    """Given dictionary with one ID pointing at voila txt file data,
+        return a tab-delim string of all the data.
+        
+        This function is exclusively for printable_lsv.
+        
+        Depends on keys defined in DPSI_HEADER.
+    """
+    stringed_lsv = ""
+    for item in DPSI_HEADER:
+        if item == "LSV ID":
+            if type(LSVID) is str:
+                stringed_lsv += "LSV ID\t" +LSVID+"\n"
+            continue
+        stringed_lsv += item+"\t"+str(LSV[item])+"\n"
+        
+    return stringed_lsv
+        
+
+def lookup_gene(LSV_dictionary, Gene_name, Ensembl_id=False):
+    """
+        Given LSV dictionary and a Gene name OR Ensembl ID, look up LSVs.
+        
+        If Ensembl_id = True, then use ENSG00... instead.
+        
+        Returns subset of the dictionary pointing with LSVs in the gene.
+    """
+    if type(Gene_name) is not str:
+        raise ValueError("Gene_name needs to be a string.")
+    if type(Ensembl_id) is not bool:
+        raise ValueError("Ensembl_id needs to be True or False.")
+    if type(LSV_dictionary) is not dict:
+        raise ValueError("LSV_dictionary needs to be a dictionary...")
+    
+    all_ids = LSV_dictionary.keys()
+    matched_ids = list()
+    for lsvid in all_ids:
+        if lsvid == "condition_1_name" or lsvid == "condition_2_name":
+            continue
+        if not Ensembl_id:
+            if LSV_dictionary[lsvid]["Gene Name"] == Gene_name:
+                matched_ids.append(lsvid)
+        elif Ensembl_id:
+            if LSV_dictionary[lsvid]["Gene ID"] == Gene_name:
+                matched_ids.append(lsvid)   
+                
+    if len(matched_ids) == 0:
+        raise ValueError(Gene_name+" wasn't found in the provided LSV_dictionary.")
+                
+    # Copy subset of dictionary using found names.
+    #     The None is not nec., because I know all keys will be in this
+    #     Dict, but for future Caleb/aliens modifying this code, I'm keeping it.
+    new_dict = {k: LSV_dictionary.get(k, None) for k in matched_ids} 
+    
+    return new_dict    
 
 def import_dpsi(File_path, Cutoff_dPSI = CUTOFF_DPSI, Cutoff_prob = CUTOFF_PROB):
     """
@@ -528,11 +613,40 @@ def all_pairwise(List_1, List_2, Order_Matters = False):
     
     for t in tuples:
         matrix.append(list(t))
-    return matrix         
+    return matrix
+
+def lsv_to_bed(LSV, Out):
+    chrom = LSV["chr"]
+    strand = LSV["strand"]
+    exon_coords = LSV["Exons coords"]
+    lsv_id = LSV["LSV ID"]
+    
+    min_coord = 1e+300
+    max_coord = 0
+    bed_lines = ""
+    i = 0
+    for exon in exon_coords:
+        exon_split = exon.split("-")
+        exon_start = exon_split[0]
+        exon_end = exon_split[1]
+        
+        if min(int(exon_start),int(exon_end)) < min_coord:
+            min_coord = min(int(exon_start),int(exon_end))
             
-            
-            
-            
+        if max(int(exon_start),int(exon_end)) > max_coord:
+            max_coord = max(int(exon_start),int(exon_end))
+                    
+        # Exon 0 is the exon from which the LSV is based
+        bed_lines+= chrom+"\t"+exon_start+"\t"+exon_end+"\t"+lsv_id+"_exon_"+str(i)
+        bed_lines+= "\t0\t"+strand+"\n"
+        i+=1
+    
+    # Expected: ENS###:start-end:type
+    bed_lines+= chrom+"\t"+str(min_coord)+"\t"+str(max_coord)+"\t"+lsv_id+"_all"
+    bed_lines+= "\t0\t"+strand+"\n"
+    
+    with open(Out, "wb") as handle:
+        handle.write(bed_lines)
             
             
             
